@@ -915,13 +915,13 @@
   .bk-face{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;background:#fdf8ee;overflow:hidden}
   .bk-face.back{transform:rotateY(180deg)}
   .bk-face img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;-webkit-user-drag:none;pointer-events:none}
-  .bk-face.cover img{object-fit:cover}
+  .bk-face.bkcv img{object-fit:cover}
   .bk-face::after{content:"";position:absolute;inset:0;pointer-events:none}
   .bk-face.front::after{background:linear-gradient(to right,rgba(0,0,0,.26) 0,rgba(0,0,0,.08) 3.5%,transparent 9%)}
   .bk-face.back::after{background:linear-gradient(to left,rgba(0,0,0,.26) 0,rgba(0,0,0,.08) 3.5%,transparent 9%)}
   .bk-single .bk-face.back{background:#efe7d6}
   .bk-single .bk-face.front::after{background:linear-gradient(to right,rgba(0,0,0,.14) 0,transparent 4%)}
-  .bk-face.cover.front{box-shadow:0 0 0 1px rgba(0,0,0,.25)}
+  .bk-face.bkcv.front{box-shadow:0 0 0 1px rgba(0,0,0,.25)}
   .bk-bottom{justify-content:center;gap:.8rem}
   .bk-range{flex:1 1 auto;max-width:34rem;accent-color:#e9d9a6;height:1.6rem}
   .bk-pageinfo{min-width:7.5rem;text-align:center;font-family:"Jua","Gaegu",sans-serif;font-size:.98rem;color:#fbf6ea;white-space:nowrap}
@@ -3175,7 +3175,7 @@ function bkFaces(){            // 장(sheet)마다 앞면/뒷면 그림
   return a;
 }
 function bkFaceEl(f, side){
-  const d = document.createElement('div'); d.className = 'bk-face ' + side + (f && f.cover ? ' cover' : '');
+  const d = document.createElement('div'); d.className = 'bk-face ' + side + (f && f.cover ? ' bkcv' : '');
   if(f && f.src){ const im = document.createElement('img'); im.alt = f.cover ? '표지' : (f.n+'쪽'); im.draggable = false; im.dataset.src = f.src; d.appendChild(im); }
   return d;
 }

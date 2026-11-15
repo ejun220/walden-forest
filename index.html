@@ -864,8 +864,6 @@
     font-family:"Noto Sans KR","Inter",sans-serif;user-select:none;-webkit-user-select:none;
   }
   #bookview[hidden]{display:none!important}
-  #bookview::before{content:"";position:absolute;inset:0;pointer-events:none;opacity:.35;mix-blend-mode:soft-light;
-    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='140' height='140' filter='url(%23n)' opacity='0.5'/></svg>")}
   .bk-top,.bk-bottom{position:relative;z-index:6;display:flex;align-items:center;gap:.5rem;padding:.55rem .8rem;flex:none}
   .bk-top{justify-content:space-between;flex-wrap:nowrap}
   .bk-title{font-family:"Jua","Gaegu",sans-serif;font-size:1.15rem;letter-spacing:.02em;white-space:nowrap;color:#fbf6ea}
@@ -905,10 +903,11 @@
   .bk-book{position:relative;width:calc(var(--bw,600px));height:var(--ph,800px);perspective:2600px;
     transition:transform .9s cubic-bezier(.45,.05,.25,1)}
   .bk-book::after{content:"";position:absolute;left:3%;right:3%;bottom:-2.2%;height:4%;z-index:0;border-radius:50%;
-    background:radial-gradient(ellipse at center,rgba(0,0,0,.55),transparent 70%);filter:blur(6px)}
+    background:radial-gradient(ellipse at center,rgba(0,0,0,.5),transparent 70%)}
   .bk-sheet{position:absolute;top:0;height:100%;left:50%;width:50%;transform-origin:left center;transform-style:preserve-3d;
     transition:transform .95s cubic-bezier(.45,.05,.25,1)}
   .bk-single .bk-sheet{left:0;width:100%}
+  .bk-sheet.off{display:none}
   .bk-sheet.flipped{transform:rotateY(-180deg)}
   .bk-single .bk-sheet.flipped{transition:transform .95s cubic-bezier(.45,.05,.25,1),visibility 0s .95s;visibility:hidden}
   .bk-single .bk-sheet:not(.flipped){visibility:visible}
@@ -3176,7 +3175,7 @@ function bkFaces(){            // 장(sheet)마다 앞면/뒷면 그림
 }
 function bkFaceEl(f, side){
   const d = document.createElement('div'); d.className = 'bk-face ' + side + (f && f.cover ? ' bkcv' : '');
-  if(f && f.src){ const im = document.createElement('img'); im.alt = f.cover ? '표지' : (f.n+'쪽'); im.draggable = false; im.dataset.src = f.src; d.appendChild(im); }
+  if(f && f.src){ const im = document.createElement('img'); im.alt = f.cover ? '표지' : (f.n+'쪽'); im.draggable = false; im.decoding = 'async'; im.dataset.src = f.src; d.appendChild(im); }
   return d;
 }
 function bkBuild(){
@@ -3215,16 +3214,32 @@ function bkZ(){
   const S = bk.sheets.length, k = bkPosToK(bk.pos);
   bk.sheets.forEach((sh,i)=>{ sh.style.zIndex = i < k ? i+1 : S-i+1; });
 }
+function bkPrune(){
+  const k = bkPosToK(bk.pos);
+  bk.sheets.forEach((sh,i)=>{ sh.classList.toggle('off', i < k-2 || i > k+2); });
+}
 function bkApply(animate, stagger){
   const S = bk.sheets.length, k = bkPosToK(bk.pos);
+  const from = (bk.fromK==null) ? k : bk.fromK;
+  if(animate && Math.abs(k-from) > 8){ animate = false; stagger = false; }   // 먼 쪽으로 점프할 땐 넘김 효과 없이 바로 이동
+  const lo = animate ? Math.min(k,from)-2 : k-2, hi = animate ? Math.max(k,from)+2 : k+2;
+  bk.sheets.forEach((sh,i)=>{ sh.classList.toggle('off', i < lo || i > hi); });
+  if(!animate) bk.sheets.forEach(sh=>{ sh.style.transition = 'none'; });
   bk.sheets.forEach((sh,i)=>{
     const flipped = i < k;
     if(sh.classList.contains('flipped') !== flipped){
-      if(animate){ sh.style.zIndex = 500; sh.style.transitionDelay = (stagger ? Math.abs(i - bk.fromK)*0.05 : 0)+'s'; }
+      if(animate){ sh.style.zIndex = 500; sh.style.transitionDelay = (stagger ? Math.abs(i - from)*0.05 : 0)+'s'; }
       sh.classList.toggle('flipped', flipped);
     }
   });
-  if(!animate) bkZ(); else setTimeout(()=>{ bk.sheets.forEach(sh=> sh.style.transitionDelay=''); bkZ(); }, 1100 + (stagger? 600:0));
+  if(!animate){
+    void bkEl('bkBook').offsetWidth;
+    bk.sheets.forEach(sh=>{ sh.style.transition = ''; sh.style.transitionDelay = ''; });
+    bkZ();
+  } else {
+    const token = bk.tok = (bk.tok||0) + 1;
+    setTimeout(()=>{ if(bk.tok !== token) return; bk.sheets.forEach(sh=> sh.style.transitionDelay=''); bkZ(); bkPrune(); }, 1100 + (stagger? 600:0));
+  }
   const book = bkEl('bkBook'), pw = parseFloat(book.dataset.pw||'0');
   const shift = bk.mode==='spread' ? (k===0 ? -pw/2 : (k===S ? pw/2 : 0)) : 0;
   book.style.transform = 'translateX('+shift+'px)';
@@ -3288,7 +3303,7 @@ function openBook(){
   bk.open = true;
   const v = (()=>{ try{ return localStorage.getItem('wf_bookvol'); }catch(e){ return null; } })();
   bkEl('bookview').hidden = false;
-  document.body.classList.add('in-book'); document.documentElement.style.overflow = 'hidden';
+  document.body.classList.add('in-book'); document.documentElement.style.overflow = 'hidden'; { const am = document.getElementById('ambient'); if(am) am.style.display = 'none'; }
   try{ history.replaceState(null,'','#/book'); }catch(e){}
   bkEl('bkHint').classList.remove('gone');
   setTimeout(()=>bkEl('bkHint').classList.add('gone'), 5000);
@@ -3301,7 +3316,7 @@ function closeBook(){
   if(!bk.open) return;
   bk.open = false;
   bkEl('bookview').hidden = true;
-  document.body.classList.remove('in-book'); document.documentElement.style.overflow = '';
+  document.body.classList.remove('in-book'); document.documentElement.style.overflow = ''; { const am = document.getElementById('ambient'); if(am) am.style.display = ''; }
   bkEl('bkToc').hidden = true;
   if(document.fullscreenElement){ try{ document.exitFullscreen(); }catch(e){} }
   try{ if((location.hash||'')==='#/book') history.replaceState(null,'','#/'); }catch(e){}
